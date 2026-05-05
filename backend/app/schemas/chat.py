@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -8,3 +10,17 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+
+
+class ChatMessageItem(BaseModel):
+    id: int
+    role: str
+    text: str
+    audio_url: str | None
+    correction: str | None
+    created_at: datetime
+
+
+class ChatHistoryResponse(BaseModel):
+    session_id: int
+    messages: list[ChatMessageItem]

@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.chat_message import ChatMessage
@@ -19,3 +20,13 @@ def create_chat_reply(db: Session, session_id: int, message: str) -> str:
     db.commit()
 
     return reply
+
+
+def get_chat_history(db: Session, session_id: int) -> list[ChatMessage]:
+    return list(
+        db.scalars(
+            select(ChatMessage)
+            .where(ChatMessage.session_id == session_id)
+            .order_by(ChatMessage.id)
+        ).all()
+    )
