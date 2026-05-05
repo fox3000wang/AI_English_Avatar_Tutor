@@ -55,10 +55,18 @@ ruff check .
 Alembic reads the database connection from `DATABASE_URL`, using the same settings module as the
 FastAPI app.
 
+Current core tables:
+
+- `users`: shared user records for parents and children.
+- `lessons`: scheduled lessons with topic, level, duration, and parent creator.
+- `lesson_sessions`: lesson run records for a child, including timing, summary, and score.
+- `chat_messages`: ordered conversation messages for a lesson session.
+- `parent_settings`: child-specific topic, difficulty, daily time, and explanation settings.
+
 Create a migration after changing SQLAlchemy models:
 
 ```bash
-alembic revision --autogenerate -m "create users table"
+alembic revision --autogenerate -m "create core learning tables"
 ```
 
 Apply migrations:
