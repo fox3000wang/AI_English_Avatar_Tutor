@@ -24,3 +24,9 @@ class ChatMessageItem(BaseModel):
 class ChatHistoryResponse(BaseModel):
     session_id: int
     messages: list[ChatMessageItem]
+
+
+class VoiceChatResponse(BaseModel):
+    user_text: str
+    ai_text: str
+    audio_url: str

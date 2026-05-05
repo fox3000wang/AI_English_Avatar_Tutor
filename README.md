@@ -1,5 +1,9 @@
 # AI_English_Avatar_Tutor
 
+## 项目位置
+
+/Users/fox/Documents/Codex/AI_English_Avatar_Tutor
+
 ## 一、项目目标
 
 本项目是一个面向 9 岁儿童的 AI 英语口语外教系统。
