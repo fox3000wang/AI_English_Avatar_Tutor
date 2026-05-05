@@ -50,6 +50,29 @@ pytest
 ruff check .
 ```
 
+## Database Migrations
+
+Alembic reads the database connection from `DATABASE_URL`, using the same settings module as the
+FastAPI app.
+
+Create a migration after changing SQLAlchemy models:
+
+```bash
+alembic revision --autogenerate -m "create users table"
+```
+
+Apply migrations:
+
+```bash
+alembic upgrade head
+```
+
+With Docker Compose running, execute migrations inside the backend container:
+
+```bash
+docker compose -f ../infra/docker-compose.yml exec backend alembic upgrade head
+```
+
 ## Docker
 
 ```bash
