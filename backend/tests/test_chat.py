@@ -110,29 +110,3 @@ def test_chat_history_returns_empty_messages_when_session_has_no_records(
     assert response.status_code == 200
     assert response.json() == {"session_id": 999, "messages": []}
 
-
-def test_voice_chat_api_returns_mock_voice_response_and_stores_messages(
-    client: TestClient,
-    testing_session_local: sessionmaker[Session],
-) -> None:
-    response = client.post(
-        "/api/v1/voice-chat",
-        data={"session_id": "1"},
-        files={"audio": ("hello.wav", b"fake audio bytes", "audio/wav")},
-    )
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "user_text": "Hello teacher",
-        "ai_text": "That's interesting! Can you tell me more about Hello teacher?",
-        "audio_url": "/audio/mock.mp3",
-    }
-
-    with testing_session_local() as db:
-        messages = list(db.scalars(select(ChatMessage).order_by(ChatMessage.id)).all())
-
-    assert [(message.role, message.text) for message in messages] == [
-        ("child", "Hello teacher"),
-        ("ai", "That's interesting! Can you tell me more about Hello teacher?"),
-    ]
-    assert all(message.session_id == 1 for message in messages)

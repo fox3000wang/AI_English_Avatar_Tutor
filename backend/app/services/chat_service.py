@@ -22,6 +22,19 @@ def create_chat_reply(db: Session, session_id: int, message: str) -> str:
     return reply
 
 
+def set_latest_ai_message_audio_url(db: Session, session_id: int, audio_url: str) -> None:
+    message = db.scalars(
+        select(ChatMessage)
+        .where(ChatMessage.session_id == session_id, ChatMessage.role == "ai")
+        .order_by(ChatMessage.id.desc())
+    ).first()
+    if message is None:
+        return
+
+    message.audio_url = audio_url
+    db.commit()
+
+
 def get_chat_history(db: Session, session_id: int) -> list[ChatMessage]:
     return list(
         db.scalars(
