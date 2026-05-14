@@ -1,8 +1,10 @@
 import json
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.models.lesson_report import LessonReport
 from app.schemas.lesson_report import LessonReportMistake, LessonReportResponse
 from app.services.chat_service import get_chat_history
 
@@ -105,7 +107,53 @@ def normalize_report(session_id: int, payload: dict) -> LessonReportResponse:
     )
 
 
-def create_lesson_report(db: Session, session_id: int) -> LessonReportResponse:
+def lesson_report_to_response(report: LessonReport) -> LessonReportResponse:
+    return LessonReportResponse(
+        session_id=report.session_id,
+        summary=report.summary,
+        strengths=report.strengths,
+        mistakes=[
+            LessonReportMistake(
+                original=str(item.get("original", "")),
+                corrected=str(item.get("corrected", "")),
+                explanation=str(item.get("explanation", "")),
+            )
+            for item in report.mistakes
+            if isinstance(item, dict)
+        ],
+        new_words=report.new_words,
+        next_practice=report.next_practice,
+    )
+
+
+def save_lesson_report(db: Session, report: LessonReportResponse) -> LessonReport:
+    db_report = LessonReport(
+        session_id=report.session_id,
+        summary=report.summary,
+        strengths=report.strengths,
+        mistakes=[mistake.model_dump() for mistake in report.mistakes],
+        new_words=report.new_words,
+        next_practice=report.next_practice,
+    )
+    db.add(db_report)
+    db.commit()
+    db.refresh(db_report)
+    return db_report
+
+
+def get_latest_lesson_report(db: Session, session_id: int) -> LessonReportResponse | None:
+    report = db.scalars(
+        select(LessonReport)
+        .where(LessonReport.session_id == session_id)
+        .order_by(LessonReport.created_at.desc(), LessonReport.id.desc())
+    ).first()
+    if report is None:
+        return None
+
+    return lesson_report_to_response(report)
+
+
+def generate_lesson_report(db: Session, session_id: int) -> LessonReportResponse:
     messages = get_chat_history(db=db, session_id=session_id)
     has_messages = len(messages) > 0
     settings = get_settings()
@@ -133,3 +181,9 @@ def create_lesson_report(db: Session, session_id: int) -> LessonReportResponse:
         return normalize_report(session_id=session_id, payload=json.loads(content))
     except Exception:
         return create_mock_lesson_report(session_id=session_id, has_messages=has_messages)
+
+
+def create_lesson_report(db: Session, session_id: int) -> LessonReportResponse:
+    report = generate_lesson_report(db=db, session_id=session_id)
+    saved_report = save_lesson_report(db=db, report=report)
+    return lesson_report_to_response(saved_report)

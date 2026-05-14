@@ -7,7 +7,11 @@ import { LessonReportCard } from "@/components/LessonReportCard";
 import { LoadingState } from "@/components/LoadingState";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
 import { fetchChatHistory, type ChatHistoryMessage } from "@/services/chatHistory";
-import { createLessonReport, type LessonReportResponse } from "@/services/lessonReport";
+import {
+  createLessonReport,
+  fetchLatestLessonReport,
+  type LessonReportResponse,
+} from "@/services/lessonReport";
 import type { VoiceChatResponse } from "@/services/voiceChat";
 
 const SESSION_ID = 1;
@@ -78,13 +82,17 @@ export default function StudentPage() {
 
     async function loadHistory() {
       try {
-        const history = await fetchChatHistory(SESSION_ID);
+        const [history, latestReport] = await Promise.all([
+          fetchChatHistory(SESSION_ID),
+          fetchLatestLessonReport(SESSION_ID),
+        ]);
         if (isMounted) {
           setMessages(normalizeHistoryMessages(history.messages));
+          setLessonReport(latestReport);
         }
       } catch {
         if (isMounted) {
-          setError("聊天历史加载失败，请稍后重试。");
+          setError("聊天历史或课后总结加载失败，请稍后重试。");
         }
       } finally {
         if (isMounted) {

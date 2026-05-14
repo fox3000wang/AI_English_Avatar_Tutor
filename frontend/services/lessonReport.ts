@@ -30,3 +30,18 @@ export async function createLessonReport(sessionId: number): Promise<LessonRepor
 
   return response.json() as Promise<LessonReportResponse>;
 }
+
+export async function fetchLatestLessonReport(
+  sessionId: number,
+): Promise<LessonReportResponse | null> {
+  const params = new URLSearchParams({ session_id: String(sessionId) });
+  const response = await fetch(`${API_BASE_URL}/api/v1/lesson-report/latest?${params.toString()}`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Latest lesson report request failed");
+  }
+
+  return response.json() as Promise<LessonReportResponse | null>;
+}

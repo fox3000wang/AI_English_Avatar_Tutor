@@ -25,3 +25,4 @@ class LessonSession(Base):
     lesson = relationship("Lesson", back_populates="sessions")
     child = relationship("User", foreign_keys=[child_id])
     chat_messages = relationship("ChatMessage", back_populates="session")
+    lesson_reports = relationship("LessonReport", back_populates="session")
