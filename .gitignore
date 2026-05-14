@@ -145,4 +145,4 @@ vite.config.ts.timestamp-*
 
 backend/.venv/
 __pycache__
-egg-info/
+backend/ai_english_avatar_tutor_backend.egg-info/
