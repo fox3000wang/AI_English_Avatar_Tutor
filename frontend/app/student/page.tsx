@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { ChatMessageList, type ChatMessageItem } from "@/components/ChatMessageList";
 import { ErrorMessage } from "@/components/ErrorMessage";
+import { LessonReportCard } from "@/components/LessonReportCard";
 import { LoadingState } from "@/components/LoadingState";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
 import { fetchChatHistory, type ChatHistoryMessage } from "@/services/chatHistory";
+import { createLessonReport, type LessonReportResponse } from "@/services/lessonReport";
 import type { VoiceChatResponse } from "@/services/voiceChat";
 
 const SESSION_ID = 1;
@@ -66,6 +68,9 @@ export default function StudentPage() {
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lessonReport, setLessonReport] = useState<LessonReportResponse | null>(null);
+  const [isReportLoading, setIsReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -105,6 +110,22 @@ export default function StudentPage() {
       createLocalMessage("user", result.user_text),
       createLocalMessage("assistant", result.ai_text, result.audio_url),
     ]);
+    setLessonReport(null);
+    setReportError(null);
+  }
+
+  async function handleCreateReport() {
+    setIsReportLoading(true);
+    setReportError(null);
+
+    try {
+      const report = await createLessonReport(SESSION_ID);
+      setLessonReport(report);
+    } catch {
+      setReportError("课后总结生成失败，请稍后重试。");
+    } finally {
+      setIsReportLoading(false);
+    }
   }
 
   return (
@@ -134,6 +155,20 @@ export default function StudentPage() {
               <div ref={bottomRef} />
             </div>
           ) : null}
+
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={handleCreateReport}
+              disabled={isReportLoading}
+              className="w-full rounded-lg bg-coral px-5 py-4 text-base font-semibold text-white shadow-lg shadow-coral/10 transition hover:bg-coral/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isReportLoading ? "正在生成课后总结..." : "生成课后总结"}
+            </button>
+            {isReportLoading ? <LoadingState message="正在整理本节课表现..." /> : null}
+            {reportError ? <ErrorMessage message={reportError} /> : null}
+            <LessonReportCard report={lessonReport} />
+          </div>
         </div>
       </section>
     </main>
