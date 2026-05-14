@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models.lesson_report import LessonReport
 from app.schemas.lesson_report import LessonReportMistake, LessonReportResponse
-from app.services.chat_service import get_chat_history
+from app.services.chat_service import get_chat_history, strip_thinking_text
 
 LESSON_REPORT_MODEL = "gpt-4o-mini"
 LESSON_REPORT_SYSTEM_PROMPT = """
@@ -157,13 +157,16 @@ def generate_lesson_report(db: Session, session_id: int) -> LessonReportResponse
     messages = get_chat_history(db=db, session_id=session_id)
     has_messages = len(messages) > 0
     settings = get_settings()
+    messages_text = "\n".join(f"{message.role}: {message.text}" for message in messages)
+
+    if not messages_text:
+        return create_mock_lesson_report(session_id=session_id, has_messages=False)
+
+    if settings.chat_provider == "minimax" and settings.minimax_api_key:
+        return generate_minimax_lesson_report(session_id=session_id, messages_text=messages_text)
 
     if not settings.openai_api_key:
         return create_mock_lesson_report(session_id=session_id, has_messages=has_messages)
-
-    messages_text = "\n".join(f"{message.role}: {message.text}" for message in messages)
-    if not messages_text:
-        return create_mock_lesson_report(session_id=session_id, has_messages=False)
 
     try:
         from openai import OpenAI
@@ -177,10 +180,34 @@ def generate_lesson_report(db: Session, session_id: int) -> LessonReportResponse
             ],
             response_format={"type": "json_object"},
         )
-        content = response.choices[0].message.content or "{}"
+        content = strip_thinking_text(response.choices[0].message.content or "{}")
         return normalize_report(session_id=session_id, payload=json.loads(content))
     except Exception:
         return create_mock_lesson_report(session_id=session_id, has_messages=has_messages)
+
+
+def generate_minimax_lesson_report(session_id: int, messages_text: str) -> LessonReportResponse:
+    settings = get_settings()
+
+    from openai import OpenAI
+
+    try:
+        client = OpenAI(
+            api_key=settings.minimax_api_key,
+            base_url=settings.minimax_base_url,
+        )
+        response = client.chat.completions.create(
+            model=settings.minimax_chat_model,
+            messages=[
+                {"role": "system", "content": LESSON_REPORT_SYSTEM_PROMPT},
+                {"role": "user", "content": build_lesson_report_prompt(messages_text)},
+            ],
+            response_format={"type": "json_object"},
+        )
+        content = strip_thinking_text(response.choices[0].message.content or "{}")
+        return normalize_report(session_id=session_id, payload=json.loads(content))
+    except Exception:
+        return create_mock_lesson_report(session_id=session_id, has_messages=bool(messages_text))
 
 
 def create_lesson_report(db: Session, session_id: int) -> LessonReportResponse:
