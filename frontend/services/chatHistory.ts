@@ -1,16 +1,20 @@
-export type ChatHistoryMessage = {
-  id: number;
-  role: string;
-  text: string;
-  audio_url: string | null;
-  correction: string | null;
-  created_at: string;
-};
+export interface ChatHistoryMessage {
+  id?: number | string;
+  session_id?: number | string;
+  role?: "user" | "assistant" | "child" | "ai" | string;
+  user_text?: string;
+  ai_text?: string;
+  content?: string;
+  text?: string;
+  audio_url?: string | null;
+  correction?: string | null;
+  created_at?: string;
+}
 
-export type ChatHistoryResponse = {
-  session_id: number;
+export interface ChatHistoryResponse {
+  session_id: number | string;
   messages: ChatHistoryMessage[];
-};
+}
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 

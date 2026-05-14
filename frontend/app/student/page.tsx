@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChatMessageList } from "@/components/ChatMessageList";
+import { useEffect, useRef, useState } from "react";
+import { ChatMessageList, type ChatMessageItem } from "@/components/ChatMessageList";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { LoadingState } from "@/components/LoadingState";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
@@ -10,25 +10,63 @@ import type { VoiceChatResponse } from "@/services/voiceChat";
 
 const SESSION_ID = 1;
 
-function createLocalMessage(
-  role: "child" | "ai",
-  text: string,
-  audioUrl: string | null = null,
-): ChatHistoryMessage {
+function mapRole(role: string | undefined): "user" | "assistant" {
+  return role === "ai" || role === "assistant" ? "assistant" : "user";
+}
+
+function normalizeHistoryMessages(messages: ChatHistoryMessage[]): ChatMessageItem[] {
+  const normalizedMessages: ChatMessageItem[] = [];
+
+  messages.forEach((message, index) => {
+    if (message.user_text || message.ai_text) {
+      if (message.user_text) {
+        normalizedMessages.push({
+          id: `${message.id ?? index}-user`,
+          role: "user",
+          content: message.user_text,
+        });
+      }
+
+      if (message.ai_text) {
+        normalizedMessages.push({
+          id: `${message.id ?? index}-assistant`,
+          role: "assistant",
+          content: message.ai_text,
+          audioUrl: message.audio_url,
+        });
+      }
+
+      return;
+    }
+
+    const content = message.content ?? message.text ?? "";
+    if (content.length > 0) {
+      normalizedMessages.push({
+        id: message.id ?? `history-${index}`,
+        role: mapRole(message.role),
+        content,
+        audioUrl: message.audio_url,
+      });
+    }
+  });
+
+  return normalizedMessages;
+}
+
+function createLocalMessage(role: "user" | "assistant", content: string, audioUrl?: string) {
   return {
-    id: Date.now() + (role === "ai" ? 1 : 0),
+    id: `${Date.now()}-${role}`,
     role,
-    text,
-    audio_url: audioUrl,
-    correction: null,
-    created_at: new Date().toISOString(),
+    content,
+    audioUrl,
   };
 }
 
 export default function StudentPage() {
-  const [messages, setMessages] = useState<ChatHistoryMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -37,11 +75,11 @@ export default function StudentPage() {
       try {
         const history = await fetchChatHistory(SESSION_ID);
         if (isMounted) {
-          setMessages(history.messages);
+          setMessages(normalizeHistoryMessages(history.messages));
         }
       } catch {
         if (isMounted) {
-          setError("Unable to load chat history.");
+          setError("聊天历史加载失败，请稍后重试。");
         }
       } finally {
         if (isMounted) {
@@ -57,11 +95,15 @@ export default function StudentPage() {
     };
   }, []);
 
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages.length]);
+
   function handleVoiceResult(result: VoiceChatResponse) {
     setMessages((currentMessages) => [
       ...currentMessages,
-      createLocalMessage("child", result.user_text),
-      createLocalMessage("ai", result.ai_text, result.audio_url),
+      createLocalMessage("user", result.user_text),
+      createLocalMessage("assistant", result.ai_text, result.audio_url),
     ]);
   }
 
@@ -77,16 +119,21 @@ export default function StudentPage() {
               AI English Tutor
             </h1>
             <p className="rounded-lg border border-ink/10 bg-white/70 px-3 py-2 text-sm font-semibold text-ink/60 shadow-sm">
-              Session #{SESSION_ID}
+              当前 Session：{SESSION_ID}
             </p>
           </div>
         </div>
 
         <div className="grid gap-5">
           <VoiceRecorder sessionId={SESSION_ID} onResult={handleVoiceResult} />
-          {isLoading ? <LoadingState message="Loading chat history..." /> : null}
+          {isLoading ? <LoadingState message="正在加载聊天历史..." /> : null}
           {error ? <ErrorMessage message={error} /> : null}
-          {!isLoading ? <ChatMessageList messages={messages} /> : null}
+          {!isLoading ? (
+            <div className="max-h-[62vh] overflow-y-auto pr-1">
+              <ChatMessageList messages={messages} />
+              <div ref={bottomRef} />
+            </div>
+          ) : null}
         </div>
       </section>
     </main>
