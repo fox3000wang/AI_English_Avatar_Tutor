@@ -4,10 +4,11 @@ import { useRef, useState } from "react";
 import { getAudioUrl, sendVoiceChat, type VoiceChatResponse } from "@/services/voiceChat";
 
 type VoiceRecorderProps = {
+  sessionId: number;
   onResult: (result: VoiceChatResponse) => void;
 };
 
-export function VoiceRecorder({ onResult }: VoiceRecorderProps) {
+export function VoiceRecorder({ sessionId, onResult }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +37,7 @@ export function VoiceRecorder({ onResult }: VoiceRecorderProps) {
 
         setIsUploading(true);
         try {
-          const result = await sendVoiceChat(audioBlob, 1);
+          const result = await sendVoiceChat(audioBlob, sessionId);
           onResult(result);
           setAudioUrl(getAudioUrl(result.audio_url));
         } catch {
